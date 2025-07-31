@@ -14,5 +14,5 @@
 # Copy environment template and get your key from Liam
 ```cp .env.example .env```
 
-# Start the backend
-```uvicorn main:app --host 127.0.0.1 --port 8000```
+# Start the backend from the top of the environment
+```uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload```
