@@ -7,6 +7,15 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret")
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
+OTP_CODE_LENGTH = 6
+OTP_EXPIRES_MINUTES = 10           # OTP valid for 10 minutes
+OTP_MAX_ATTEMPTS = 5               # number of wrong-code attempts allowed
+OTP_RESEND_COOLDOWN_SECONDS = 60   # minimum seconds before allowing another OTP send
+
+# Email (dev)
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "no-reply@example.com"
+
 INSTALLED_APPS = [
     # Core minimal set; keep admin only if you want it
     "django.contrib.auth",
