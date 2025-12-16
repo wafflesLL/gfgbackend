@@ -1,3 +1,6 @@
+# my stuff
+data/*
+
 # Django #
 *.log
 *.pot
