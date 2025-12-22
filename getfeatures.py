@@ -201,7 +201,7 @@ def debug_blob(point, size):
 def main():
     # all you need to know is coordinates are ordered (x, y, z):(0, 1, 2)
     # For finding the nose
-    y_range = (-2.0, 2.0)
+    y_slice_proportion = 50.0  # percent
 
     # For finding all other facial "hills"
     slice_size = 10.0  # percent
@@ -215,6 +215,9 @@ def main():
     slice = float(x_axis_size) * (slice_size / 100.0)
 
     # find nose tip
+    y_slice = (face_scan.dim.y_max - face_scan.dim.y_min) * (y_slice_proportion
+                                                             / 100.0)
+    y_range = (-1 * (y_slice / 2.0), y_slice / 2.0)
     nose_dimensions = Dimensions(face_scan.dim.x, y_range, face_scan.dim.z)
     nose_subspace = get_subspace(face_scan.points, nose_dimensions)
     nose_tip_point = find_hill(nose_subspace)
