@@ -60,7 +60,10 @@ class Dimensions:
 class Face_Scan:
     def __init__(self, scan_file: str):
         self.pcd = o3d.io.read_point_cloud(scan_file)
-        self.ORIGINAL_POINTS = np.asarray(self.pcd.points)
+        self.corrected_pcd = align_face_to_front(self.pcd)
+        o3d.io.write_point_cloud("./data/corrected_face.ply",
+                                 self.corrected_pcd)
+        self.ORIGINAL_POINTS = np.asarray(self.corrected_pcd.points)
         self.points = self.ORIGINAL_POINTS
         x, y, z = self.get_dimensions()
         self.dim = Dimensions(x, y, z)
@@ -149,10 +152,16 @@ def find_hills(face_scan: Face_Scan, prominence: float) -> list:
     '''
     points = get_subspace(face_scan.points, face_scan.dim)
 
-    # find the facial average
+    # find the facial surface
     z = points[:, 2]
+    z_range = np.max(z) - np.min(z)
     face_surface = (stats.mode(z, keepdims=False)).mode
-    print(face_surface)
+    target = (z_range * (prominence / 100.0)) + face_surface
+
+    print(f"Facial Surface: {face_surface}")
+    print(f"Max Prominence: {np.max(z) - face_surface} inches")
+    print(f"Max Prominence Proportion: {((np.max(z) - face_surface) /
+                                        z_range) * 100.0} %")
 
     # sort by y val (descending)
     sorted_indicies = np.argsort(points[:, 1])
@@ -163,19 +172,19 @@ def find_hills(face_scan: Face_Scan, prominence: float) -> list:
     hill_size = face_surface
     peaked = (False, [0, 0, 0])
 
-    target = face_surface + prominence
-
-    for point in sorted_points:
-        hill_size -= point[2]
-        if hill_size <= face_surface and peaked[0]:
+    prev = face_surface
+    for i, point in enumerate(sorted_points):
+        hill_size += (point[2] - face_surface) - (prev - face_surface)
+        if peaked[0]:
             hills.append(peaked[1])
             hill_size = face_surface
             peaked = (False, [0, 0, 0])
-        elif hill_size >= target:
-            if point[2] > peaked[1][2]:
+        if hill_size >= target:
+            if np.abs(point[2]) > np.abs(peaked[1][2]):
                 peaked = (True, point)
             else:
                 peaked = (True, peaked[1])
+        prev = point[2]
 
     return hills
 
@@ -198,20 +207,18 @@ def main():
     slice_size = 10.0  # percent
 
     # prominence of z-facing features
-    prominence = 1.0  # millimeters
+    prominence = 10.0  # percent
 
     # Initialization
     face_scan = Face_Scan('./data/liams-face.ply')
     x_axis_size = np.abs(face_scan.dim.x_max) + np.abs(face_scan.dim.x_min)
     slice = float(x_axis_size) * (slice_size / 100.0)
 
-    new_pcd = align_face_to_front(face_scan.pcd)
-    o3d.io.write_point_cloud("./data/corrected_face.ply", new_pcd)
-    '''
     # find nose tip
     nose_dimensions = Dimensions(face_scan.dim.x, y_range, face_scan.dim.z)
     nose_subspace = get_subspace(face_scan.points, nose_dimensions)
     nose_tip_point = find_hill(nose_subspace)
+    print(f'Nose Tip: {nose_tip_point} inches')
 
     # get a subspace of the points that are above the nose tip
     # and the size of the slice_size
@@ -220,13 +227,19 @@ def main():
                          nose_tip_point[0] + (slice / 2.0)))
 
     # find the hills in the x-slice of the z-y plane
+    print('='*80)
     print(f'Search Space: {face_scan.dim.get_dimensions()}')
-    print(f'Prominent Features: {find_hills(face_scan, prominence)}')
+    print('='*80)
+    hills = find_hills(face_scan, prominence)
+    print(f'Prominent Features: {len(hills)}')
+
     # debugging crap
-    nose_blob = debug_blob(nose_tip_point, 1)
-    debug_pcd = nose_blob
+    debug_pcd = o3d.geometry.PointCloud()
+    for hill in hills:
+        hill_blob = debug_blob(hill, .5)
+        debug_pcd += hill_blob
+
     o3d.io.write_point_cloud("./data/debug_output.ply", debug_pcd)
-    '''
     return
 
 
